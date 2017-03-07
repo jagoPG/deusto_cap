@@ -6,7 +6,7 @@ $ sudo apt-get install libssl-dev
 
 # Compilación
 $ cd hasher
-$ gcc sha1.c -lssl -lcrypto  -o hasher
+$ gcc sha512.c -lssl -lcrypto  -o hasher
 
 # Ejecución
 $ ./hasher "Hola mundo"
