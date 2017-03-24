@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <omp.h>
 #include <openssl/sha.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 /**
  * Genera un hash a partir de una clave.
@@ -8,19 +11,16 @@
  * @param plain clave en texto plano
  * @param encodedStr hash generado
  */
-void hashing(char *plain, char *encodedStr)
+void hashing(unsigned char *plain, unsigned char *encodedStr)
 {
-    unsigned char *data = (unsigned char *) argv[1];
     unsigned char encoded[SHA512_DIGEST_LENGTH];
     int i;
 
-    SHA512(data, strlen(data), encoded);
+    SHA512(plain, strlen(plain), encoded);
     for (i = 0; i < SHA512_DIGEST_LENGTH; ++i) {
         sprintf(&encodedStr[i*2], "%02x", encoded[i]);
     }
     printf("%s\n", encodedStr);
-
-    return encodedStr;
 }
 
 /**
@@ -32,15 +32,17 @@ void hashing(char *plain, char *encodedStr)
  * @param alpha  alfabeto empleado
  * @param candidato clave candidata generada
  */
-void getKey(int n, int size, char *alpha, char *candidato)
+int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
 {
     unsigned char *key[size];
     int len = strlen(alpha);
     int num = n;
 
     if (n > ipow(strlen(alpha), size)) {
-        return '\0';
+        return 0;
     } else {
+        int i = 0;
+
         // cálculo de n que está en base 10 a strlen(alpha)
         while (num > 0) {
             key[size - i - 1] = alpha[num % len];
@@ -54,6 +56,8 @@ void getKey(int n, int size, char *alpha, char *candidato)
             i++;
         }
     }
+
+    return strlen(candidato);
 }
 /**
  * El programa de poder recibir un alfabeto, un tamaño de la clave y el hash
@@ -62,22 +66,24 @@ void getKey(int n, int size, char *alpha, char *candidato)
  * @param argv
  * @return 0 si no ha habido errores.
  */
-int main (int argc, char[] *argv)
+int main (int argc, char *argv[])
 {
-    unsigned int SIZE = 4;
-    unsigned char alpha[] =  "abcdefghijklmnopqrstuvwxyz";
+    unsigned char secret[] = "hola";
+    unsigned int size = 4;
+    unsigned char alpha[] = "abcdefghijklmnopqrstuvwxyz";
+    int lenkeyspace = 4 * strlen(alpha);
     int i;
 
     // comprobar si los argumentos son correctos
-    unsigned char *encodedStr;
-    unsigned char *candidato;s
+    unsigned char *hash;
+    unsigned char *candidate;
 
     for (i = 0; i < lenkeyspace; i++) {
         // generar clave candidata y hashearla
-        encodedStr = (char*) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
-        candidato = (char *) malloc((size + 1) *sizeof(char));
-        getKey(i, SIZE, alpha, candidate);
-        hash = hashing(candidate);
+        hash = (char*) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
+        candidate = (char *) malloc((size + 1) *sizeof(char));
+        getKey(i, size, alpha, candidate);
+        hashing(candidate, hash);
 
         // comprobar si se ha encontrado la clave
         if (!strcmp(hash, secret)) {
@@ -85,9 +91,10 @@ int main (int argc, char[] *argv)
             break;
         }
 
-        free(encodedStr);
-        free(candidato);
+        free(hash);
+        free(candidate);
     }
 
     return 0;
 }
+
