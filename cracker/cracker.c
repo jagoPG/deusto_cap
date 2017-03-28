@@ -82,8 +82,8 @@ int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
  */
 int main (int argc, char *argv[])
 {
-    unsigned char *secretHashed = (char *) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
-    unsigned char secret[] ="bbbc";
+    unsigned char *secretHashed = (unsigned char *) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
+    unsigned char *secret = "bbbc";
     hashing(secret, secretHashed);
 
     int size = 4;
@@ -92,26 +92,19 @@ int main (int argc, char *argv[])
     int i;
     int errcode;
 
-    // comprobar si los argumentos son correctos
+    // !TODO comprobar si los argumentos son correctos
     unsigned char *hash;
     unsigned char *candidate;
     unsigned char *tmp;
-    printf("%s", secretHashed);
-return;
-    printf("Buscar %s\n", secret);
+
+    printf("Buscar %s\n", secretHashed);
     for (i = 0; i < lenkeyspace; i++) {
         // generar clave candidata y hashearla
         hash = (char *) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
         candidate = (char *) malloc((size + 1) * sizeof(char));
-        tmp = (char *) malloc((size +1) * sizeof(char));
 
         getKey(i, size, alpha, candidate);
-        strcpy(tmp, candidate);
         hashing(tmp, hash);
-
-        printf("Candidata: %s\n", candidate);
-        printf("Hash: %s\n", hash);
-        printf("\n");
 
         // comprobar si se ha encontrado la clave
         if (!strcmp(hash, secretHashed)) {
@@ -119,10 +112,10 @@ return;
             break;
         }
 
-        //free(hash);
-        //free(tmp);
-        //free(candidate);
+        free(hash);
+        free(candidate);
     }
+    free(secretHashed);
 
     return 0;
 }
