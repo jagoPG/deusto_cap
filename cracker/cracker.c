@@ -10,7 +10,7 @@
  * @param plain clave en texto plano
  * @param encodedStr hash generado
  */
-void hashing(unsigned char *plain, unsigned char *encodedStr)
+void hashing(unsigned char plain[], unsigned char encodedStr[])
 {
     static unsigned char encoded[SHA512_DIGEST_LENGTH*2];
     int i;
@@ -47,7 +47,7 @@ long long int power(int number, int power)
  * @param alpha  alfabeto empleado
  * @param candidato clave candidata generada por la función
  */
-int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
+int getKey(int n, int size, unsigned char *alpha, unsigned char candidato[])
 {
     int len = strlen(alpha);
     int num = n;
@@ -85,7 +85,7 @@ int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
 int main (int argc, char *argv[])
 {
     unsigned char secretHashed[SHA512_DIGEST_LENGTH*2];
-    unsigned char secret[] = "bb\0";
+    unsigned char secret[] = "af\0";
     hashing(secret, secretHashed);
 
     int size = 2;
@@ -98,18 +98,14 @@ int main (int argc, char *argv[])
     unsigned char hash[SHA512_DIGEST_LENGTH*2];
     unsigned char candidate[size + 1];
 
-    printf("Buscar %s\n", secretHashed);
+    printf("Buscar: %s\n", secretHashed);
     for (i = 0; i < lenkeyspace; i++) {
         // Generar clave candidata y hashearla
         getKey(i, size, alpha, candidate);
         hashing(candidate, hash);
 
-        printf("Candidata: %s\n", candidate);
-        printf("Hash: %s\n\n", hash);
-
         // Comprobar si se ha encontrado la clave
-        printf("Comparison result: %d\n", strcmp(hash, secretHashed));
-        if (!strcmp(hash, secretHashed)) {
+        if (!strncmp(hash, secretHashed, SHA512_DIGEST_LENGTH * 2)) {
             printf("Encontrado, %s = %s", candidate, secret);
             break;
         }
