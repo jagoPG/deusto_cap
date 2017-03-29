@@ -12,11 +12,11 @@
  */
 void hashing(unsigned char *plain, unsigned char *encodedStr)
 {
-    unsigned char encoded[SHA512_DIGEST_LENGTH];
+    static unsigned char encoded[SHA512_DIGEST_LENGTH];
     int i;
 
     SHA512(plain, strlen(plain), encoded);
-    for (i = 0; i < SHA512_DIGEST_LENGTH; ++i) {
+    for (i = 0; i < SHA512_DIGEST_LENGTH; i++) {
         sprintf(&encodedStr[i*2], "%02x", encoded[i]);
     }
 }
@@ -27,7 +27,7 @@ void hashing(unsigned char *plain, unsigned char *encodedStr)
  * @param number Número
  * @param power Potencia
  */
-long long power(int number, int power)
+long long int power(int number, int power)
 {
     long long int total = 1;
     while (power > 0) {
@@ -69,6 +69,8 @@ int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
             candidato[size - i - 1] = alpha[0];
             i++;
         }
+
+        candidato[size] = '\0';
     }
 
     return strlen(candidato);
@@ -82,40 +84,35 @@ int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
  */
 int main (int argc, char *argv[])
 {
-    unsigned char *secretHashed = (unsigned char *) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
-    unsigned char *secret = "bbbc";
+    unsigned char secretHashed[SHA512_DIGEST_LENGTH];
+    unsigned char secret[] = "bb\0";
     hashing(secret, secretHashed);
 
-    int size = 4;
+    int size = 2;
     unsigned char alpha[] = "abcdefghijklmnopqrstuvwxyz";
-    int lenkeyspace = size * strlen(alpha);
+    int lenkeyspace =  power(strlen(alpha), size);
     int i;
     int errcode;
 
     // !TODO comprobar si los argumentos son correctos
-    unsigned char *hash;
-    unsigned char *candidate;
-    unsigned char *tmp;
+    unsigned char hash[SHA512_DIGEST_LENGTH];
+    unsigned char candidate[size + 1];
 
     printf("Buscar %s\n", secretHashed);
     for (i = 0; i < lenkeyspace; i++) {
-        // generar clave candidata y hashearla
-        hash = (char *) malloc(SHA512_DIGEST_LENGTH * sizeof(char));
-        candidate = (char *) malloc((size + 1) * sizeof(char));
-
+        // Generar clave candidata y hashearla
         getKey(i, size, alpha, candidate);
-        hashing(tmp, hash);
+        hashing(candidate, hash);
 
-        // comprobar si se ha encontrado la clave
+        printf("Candidata: %s\n", candidate);
+        printf("Hash: %s\n\n", hash);
+
+        // Comprobar si se ha encontrado la clave
         if (!strcmp(hash, secretHashed)) {
             printf("Encontrado, %s = %s", candidate, secret);
             break;
         }
-
-        free(hash);
-        free(candidate);
     }
-    free(secretHashed);
 
     return 0;
 }
