@@ -12,7 +12,7 @@
  */
 void hashing(unsigned char *plain, unsigned char *encodedStr)
 {
-    static unsigned char encoded[SHA512_DIGEST_LENGTH];
+    static unsigned char encoded[SHA512_DIGEST_LENGTH*2];
     int i;
 
     SHA512(plain, strlen(plain), encoded);
@@ -84,7 +84,7 @@ int getKey(int n, int size, unsigned char *alpha, unsigned char *candidato)
  */
 int main (int argc, char *argv[])
 {
-    unsigned char secretHashed[SHA512_DIGEST_LENGTH];
+    unsigned char secretHashed[SHA512_DIGEST_LENGTH*2];
     unsigned char secret[] = "bb\0";
     hashing(secret, secretHashed);
 
@@ -95,7 +95,7 @@ int main (int argc, char *argv[])
     int errcode;
 
     // !TODO comprobar si los argumentos son correctos
-    unsigned char hash[SHA512_DIGEST_LENGTH];
+    unsigned char hash[SHA512_DIGEST_LENGTH*2];
     unsigned char candidate[size + 1];
 
     printf("Buscar %s\n", secretHashed);
@@ -108,6 +108,7 @@ int main (int argc, char *argv[])
         printf("Hash: %s\n\n", hash);
 
         // Comprobar si se ha encontrado la clave
+        printf("Comparison result: %d\n", strcmp(hash, secretHashed));
         if (!strcmp(hash, secretHashed)) {
             printf("Encontrado, %s = %s", candidate, secret);
             break;
