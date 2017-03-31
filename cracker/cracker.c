@@ -96,6 +96,18 @@ int get_corrected_key(int n, int min, int max, unsigned char *alpha, unsigned ch
     return -1;
 }
 
+long long int calculate_key_space(int min, int max, int alpha_length)
+{
+    long long int total = 1;
+
+    while (min <= max) {
+        total += power(alpha_length, min);
+        min++;
+    }
+
+    return total;
+}
+
 /**
  * El programa de poder recibir un alfabeto, un tamaño de la clave y el hash
  * que se quiere crackear.
@@ -112,7 +124,6 @@ int main (int argc, char *argv[])
     unsigned char alpha[] = "abcdefghijklmnopqrstuvwxyz";
 
     while ((opt = getopt(argc, argv, "m:M:a:h:")) != -1) {
-        printf("%c\n", opt);
         switch (opt) {
             case 'm':
                 min = atoi(optarg);
@@ -132,7 +143,7 @@ int main (int argc, char *argv[])
     }
     printf("%d %d %s %s\n", min, max ,alpha, secretHashed);
 
-    long long int lenkeyspace =  power(strlen(alpha), max);
+    long long int lenkeyspace =  calculate_key_space(min, max, strlen(alpha));
     int i;
     int corrected_index;
     int size;
@@ -144,7 +155,7 @@ int main (int argc, char *argv[])
 
     #pragma omp parallel for private(corrected_index, candidate, size, hash) shared(found)
     for (i = 0; i < lenkeyspace; i++) {
-        if (!found) {
+        if (found) {
             continue;
         }
 
@@ -165,7 +176,6 @@ int main (int argc, char *argv[])
                 printf("Encontrado, %s = %s", candidate, hash);
             }
             printf("%s ", candidate);
-
             free(candidate);
         }
     }
