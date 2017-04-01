@@ -1,3 +1,9 @@
+/*
+ * Cracker de claves SHA512 por fuerta bruta paralelizado.
+ *
+ * @author Jorge Sarabia <georgesarabia@opendeusto.es>
+ * @author Jagoba Pérez <jagobaperez92@opendeusto.es>
+ */
 #include <stdio.h>
 #include <omp.h>
 #include <openssl/sha.h>
@@ -77,7 +83,17 @@ int get_key(int n, int size, unsigned char *alpha, unsigned char *candidato)
     return strlen(candidato);
 }
 
-int get_corrected_key(int n, int min, int max, unsigned char *alpha, unsigned char *candidato, int *size)
+/**
+ * Obtiene el tamaño de una clave a partir de un tamaño mínimo, hasta un tamaño máxmo.
+ *
+ * @param n Clave candidata indexada
+ * @param min Tamaño minimo
+ * @param max Tamaño máximo
+ * @param alpha Alfabeto
+ * @param size Tamaño resultante
+ * @return -1 si hay error, clave corregida
+ */
+int get_corrected_key(int n, int min, int max, unsigned char *alpha, int *size)
 {
     int i;
     int limit;
@@ -96,6 +112,13 @@ int get_corrected_key(int n, int min, int max, unsigned char *alpha, unsigned ch
     return -1;
 }
 
+/**
+ * Calcular espacio de claves
+ * @param min tamaño minimo
+ * @param max tamaño máximo
+ * @param alpha_length tamaño del alfabeto
+ * @return espacio total de claves
+ */
 long long int calculate_key_space(int min, int max, int alpha_length)
 {
     long long int total = 1;
@@ -118,12 +141,12 @@ long long int calculate_key_space(int min, int max, int alpha_length)
 int main (int argc, char *argv[])
 {
     int opt;
-    unsigned char secretHashed[SHA512_DIGEST_LENGTH*2] = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
-    int min = 2;
-    int max = 4;
-    unsigned char alpha[] = "abcdefghijklmnopqrstuvwxyz";
+    unsigned char secretHashed[SHA512_DIGEST_LENGTH*2];
+    int min;
+    int max;
+    unsigned char *alpha;
 
-    while ((opt = getopt(argc, argv, "m:M:a:h:")) != -1) {
+    while ((opt = getopt(argc, argv, "p:m:M:a:H:")) != -1) {
         switch (opt) {
             case 'm':
                 min = atoi(optarg);
@@ -132,16 +155,19 @@ int main (int argc, char *argv[])
                 max = atoi(optarg);
                 break;
             case 'a':
+                alpha = (char *) calloc(strlen(optarg), sizeof(char));
                 sprintf(alpha, "%s", optarg);
                 break;
-            case 'h':
+            case 'H':
                 sprintf(secretHashed, "%s", optarg);
                 break;
+            case 'p':
+                omp_set_num_threads(atoi(optarg));
+                break;
             default:
-                printf("./cracker -m MIN -M MAX -a ALPHABET -h HASH\n");
+                printf("./crack-openmp -m MIN -M MAX -a ALPHABET -H HASH -p PROCESSES\n");
         }
     }
-    printf("%d %d %s %s\n", min, max ,alpha, secretHashed);
 
     long long int lenkeyspace =  calculate_key_space(min, max, strlen(alpha));
     int i;
@@ -151,8 +177,6 @@ int main (int argc, char *argv[])
     unsigned char hash[SHA512_DIGEST_LENGTH*2];
     unsigned char *candidate;
 
-    printf("Buscar: %s\n", secretHashed);
-
     #pragma omp parallel for private(corrected_index, candidate, size, hash) shared(found)
     for (i = 0; i < lenkeyspace; i++) {
         if (found) {
@@ -160,11 +184,9 @@ int main (int argc, char *argv[])
         }
 
         // Obtener el tamaño de la clave
-        corrected_index = get_corrected_key(i, min, max, alpha, candidate, &size);
+        corrected_index = get_corrected_key(i, min, max, alpha, &size);
 
-        if (corrected_index == -1) {
-            printf("La clave es demasiado grande, aumente la longitud máxima permitida.\n");
-        } else {
+        if (corrected_index != -1) {
             // Obtener el candidato y hashearlo
             candidate = (char *) calloc(size, sizeof(char));
             get_key(corrected_index, size, alpha, candidate);
@@ -173,11 +195,13 @@ int main (int argc, char *argv[])
             // Comprobar si se ha encontrado la clave
             if (!strncmp(hash, secretHashed, SHA512_DIGEST_LENGTH * 2)) {
                 found = 1;
-                printf("Encontrado, %s = %s", candidate, hash);
+                printf("%s = hash(\"%s\")\n", hash, candidate);
             }
-            printf("%s ", candidate);
             free(candidate);
         }
+    }
+    if (!found) {
+        printf("No se ha encontrado la clave, pruebe con otro alfabeto u otro rango de longitud.\n");
     }
 
     return 0;
