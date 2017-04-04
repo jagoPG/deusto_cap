@@ -177,9 +177,10 @@ int main (int argc, char *argv[])
     unsigned char hash[SHA512_DIGEST_LENGTH*2];
     unsigned char *candidate;
 
-    #pragma omp parallel for private(corrected_index, candidate, size, hash) shared(found)
+    #pragma omp parallel for private(corrected_index, candidate, size, hash, lenkeyspace) shared(found)
     for (i = 0; i < lenkeyspace; i++) {
         if (found) {
+            i = lenkeyspace;
             continue;
         }
 
@@ -195,6 +196,8 @@ int main (int argc, char *argv[])
             // Comprobar si se ha encontrado la clave
             if (!strncmp(hash, secretHashed, SHA512_DIGEST_LENGTH * 2)) {
                 found = 1;
+
+                #pragma omp flush(found)
                 printf("%s = hash(\"%s\")\n", hash, candidate);
             }
             free(candidate);
