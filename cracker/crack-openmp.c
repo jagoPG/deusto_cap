@@ -54,7 +54,7 @@ long long int power(int number, int power)
  * @param alpha  alfabeto empleado
  * @param candidato clave candidata generada por la función
  */
-int get_key(int n, int size, unsigned char *alpha, unsigned char *candidato)
+int get_key(long long int n, long long int size, unsigned char *alpha, unsigned char *candidato)
 {
     int len = strlen(alpha);
     int num = n;
@@ -93,10 +93,10 @@ int get_key(int n, int size, unsigned char *alpha, unsigned char *candidato)
  * @param size Tamaño resultante
  * @return -1 si hay error, clave corregida
  */
-int get_corrected_key(int n, int min, int max, unsigned char *alpha, int *size)
+int get_corrected_key(long long int n, int min, int max, unsigned char *alpha, int *size)
 {
     int i;
-    int limit;
+    long long int limit;
 
     for (i = min; i <= max; i++) {
         limit = power(strlen(alpha), i);
@@ -170,8 +170,8 @@ int main (int argc, char *argv[])
     }
 
     long long int lenkeyspace =  calculate_key_space(min, max, strlen(alpha));
-    int i;
-    int corrected_index;
+    long long int i;
+    long long int corrected_index;
     int size;
     int found = 0;
     unsigned char hash[SHA512_DIGEST_LENGTH*2];
