@@ -5,7 +5,7 @@
  * @author Jagoba Pérez <jagobaperez92@opendeusto.es>
  */
 #include <stdio.h>
-#include <omp.h>
+#include <mpi.h>
 #include <openssl/sha.h>
 #include <string.h>
 #include <stdlib.h>
@@ -121,7 +121,7 @@ int get_corrected_key(long long int n, int min, int max, unsigned char *alpha, i
  */
 long long int calculate_key_space(int min, int max, int alpha_length)
 {
-    long long int total = 1;
+    long long int total = 0;
 
     while (min <= max) {
         total += power(alpha_length, min);
@@ -129,6 +129,36 @@ long long int calculate_key_space(int min, int max, int alpha_length)
     }
 
     return total;
+}
+
+/**
+ * Enviar a los nodos hijos la cantidad de claves que tienen que analizar
+ *
+ * @return El número de claves que tiene que analizar el nodo padre
+ */
+long long int send_amount_work(long long int keyspace, int amount_processes) {
+    int index;
+    long long int amount_work = keyspace / amount_processes;
+
+    for (index = 0; index < amount_processes; index++) {
+        MPI_Send(&amount_work, 1, MPI_LONG_LONG_INT, index, 0, MPI_COMM_WORLD);
+    }
+
+    return amount_work + (keyspace % amount_processes);
+}
+
+/**
+ * Recibir cantidad de trabajo
+ *
+ * @return Cantidad de trabajo
+ */
+int get_amount_work() {
+    long long int amount_work;
+    MPI_Status status;
+
+    MPI_Recv(&amount_work, 1, MPI_LONG_LONG_INT, 0, 0, MPI_COMM_WORLD, &status);
+
+    return amount_work;
 }
 
 /**
@@ -140,13 +170,11 @@ long long int calculate_key_space(int min, int max, int alpha_length)
  */
 int main (int argc, char *argv[])
 {
-    int opt;
     unsigned char secretHashed[SHA512_DIGEST_LENGTH*2];
-    int min;
-    int max;
+    int min, max, rank, opt, size, found = 0;
     unsigned char *alpha;
 
-    while ((opt = getopt(argc, argv, "p:m:M:a:H:")) != -1) {
+    while ((opt = getopt(argc, argv, "m:M:a:H:")) != -1) {
         switch (opt) {
             case 'm':
                 min = atoi(optarg);
@@ -161,30 +189,42 @@ int main (int argc, char *argv[])
             case 'H':
                 sprintf(secretHashed, "%s", optarg);
                 break;
-            case 'p':
-                omp_set_num_threads(atoi(optarg));
-                break;
             default:
                 printf("./crack-openmp -m MIN -M MAX -a ALPHABET -H HASH -p PROCESSES\n");
+                return 0;
         }
     }
 
     long long int lenkeyspace =  calculate_key_space(min, max, strlen(alpha));
     long long int i;
     long long int corrected_index;
-    int size;
-    int found = 0;
     unsigned char hash[SHA512_DIGEST_LENGTH*2];
     unsigned char *candidate;
 
-    for (i = 0; i < lenkeyspace; i++) {
-        if (found) {
-            i = lenkeyspace;
-            continue;
-        }
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    // Repartir la cantidad de trabajo entre el padre y los hijos
+    long long int amount_work;
+    long long int index;
+    long long int begining;
+    int tmp;
+
+    if (rank == 0) {
+        amount_work = send_amount_work(lenkeyspace, size);
+    } else {
+        amount_work = get_amount_work();
+    }
+    begining = (amount_work * (size - rank - 1));
+
+    // Búsqueda de la clave
+    for (i = 0; i < lenkeyspace && !found; i++) {
+        // Calcular la clave a procesar
+        index = i + begining;
 
         // Obtener el tamaño de la clave
-        corrected_index = get_corrected_key(i, min, max, alpha, &size);
+        corrected_index = get_corrected_key(index, min, max, alpha, &size);
 
         if (corrected_index != -1) {
             // Obtener el candidato y hashearlo
@@ -195,16 +235,26 @@ int main (int argc, char *argv[])
             // Comprobar si se ha encontrado la clave
             if (!strncmp(hash, secretHashed, SHA512_DIGEST_LENGTH * 2)) {
                 found = 1;
-
-                #pragma omp flush(found)
                 printf("%s = hash(\"%s\")\n", hash, candidate);
             }
             free(candidate);
+        }
+
+        // Comprobar algún otro nodo ha encontrado la clave
+        for (tmp = 0; tmp < size; tmp++) {
+            if (tmp != rank) {
+                MPI_Bcast(&found, 1, MPI_INT, 3, MPI_COMM_WORLD);
+                if (found) {
+                    break;
+                }
+            }
         }
     }
     if (!found) {
         printf("No se ha encontrado la clave, pruebe con otro alfabeto u otro rango de longitud.\n");
     }
+    MPI_Finalize();
+
 
     return 0;
 }
