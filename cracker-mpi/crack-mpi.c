@@ -136,7 +136,8 @@ long long int calculate_key_space(int min, int max, int alpha_length)
  *
  * @return El número de claves que tiene que analizar el nodo padre
  */
-long long int send_amount_work(long long int keyspace, int amount_processes) {
+long long int send_amount_work(long long int keyspace, int amount_processes)
+{
     int index;
     long long int amount_work = keyspace / amount_processes;
 
@@ -152,13 +153,34 @@ long long int send_amount_work(long long int keyspace, int amount_processes) {
  *
  * @return Cantidad de trabajo
  */
-int get_amount_work() {
+int get_amount_work()
+{
     long long int amount_work;
     MPI_Status status;
 
     MPI_Recv(&amount_work, 1, MPI_LONG_LONG_INT, 0, 0, MPI_COMM_WORLD, &status);
 
     return amount_work;
+}
+
+void notifyParentKeyFound(int rank, int found)
+{
+    MPI_Request request;
+    MPI_Isend(&found, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
+}
+
+int checkParentIfKeyFound(int size)
+{
+    MPI_Request request;
+    int index, found;
+
+    for (index = 1; index < size; index++) {
+        MPI_Irecv(&found, 1, MPI_INT, index, 0, MPI_COMM_WORLD, &request);
+
+        if (found == 1) {
+            return found;
+        }
+    }
 }
 
 /**
@@ -219,7 +241,7 @@ int main (int argc, char *argv[])
     begining = (amount_work * (size - rank - 1));
 
     // Búsqueda de la clave
-    for (i = 0; i < lenkeyspace && !found; i++) {
+    for (i = 0; i < lenkeyspace && found != 1; i++) {
         // Calcular la clave a procesar
         index = i + begining;
 
@@ -236,20 +258,20 @@ int main (int argc, char *argv[])
             if (!strncmp(hash, secretHashed, SHA512_DIGEST_LENGTH * 2)) {
                 found = 1;
                 printf("%s = hash(\"%s\")\n", hash, candidate);
+
             }
             free(candidate);
         }
 
         // Comprobar algún otro nodo ha encontrado la clave
-        for (tmp = 0; tmp < size; tmp++) {
-            if (tmp != rank) {
-                MPI_Bcast(&found, 1, MPI_INT, 3, MPI_COMM_WORLD);
-                if (found) {
-                    break;
-                }
-            }
+        if (rank == 0) {
+            found = checkParentIfKeyFound(size);
+        } else {
+            notifyParentKeyFound(rank, found);
         }
+        MPI_Bcast(&found, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
+    printf("end\n");
     if (!found) {
         printf("No se ha encontrado la clave, pruebe con otro alfabeto u otro rango de longitud.\n");
     }
