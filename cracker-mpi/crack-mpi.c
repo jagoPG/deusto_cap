@@ -269,19 +269,18 @@ int main (int argc, char *argv[])
         // Comprobar algún otro nodo ha encontrado la clave
         MPI_Reduce(&found, &reduce_response, 1, MPI_INT, MPI_LOR, 0, MPI_COMM_WORLD);
         begin = clock();
-
         if (rank == 0) {
             found = reduce_response;
         }
 
+        // Notificar a todos los nodos si se ha encontrado la clave
         MPI_Bcast(&found, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
-    printf("end\n");
+
     if (!found) {
         printf("No se ha encontrado la clave, pruebe con otro alfabeto u otro rango de longitud.\n");
     }
     MPI_Finalize();
-
 
     return 0;
 }
