@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 /**
  * Genera un hash a partir de una clave.
@@ -232,6 +233,8 @@ int main (int argc, char *argv[])
     long long int index;
     long long int begining;
     int tmp;
+    int reduce_response;
+    clock_t begin = clock();
 
     if (rank == 0) {
         amount_work = send_amount_work(lenkeyspace, size);
@@ -264,11 +267,13 @@ int main (int argc, char *argv[])
         }
 
         // Comprobar algún otro nodo ha encontrado la clave
+        MPI_Reduce(&found, &reduce_response, 1, MPI_INT, MPI_LOR, 0, MPI_COMM_WORLD);
+        begin = clock();
+
         if (rank == 0) {
-            found = checkParentIfKeyFound(size);
-        } else {
-            notifyParentKeyFound(rank, found);
+            found = reduce_response;
         }
+
         MPI_Bcast(&found, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
     printf("end\n");
